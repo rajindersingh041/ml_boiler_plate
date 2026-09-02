@@ -1,0 +1,33 @@
+[project]
+name = "ml-boilerplate"
+version = "0.1.0"
+description = "Generic boilerplate for supervised ML learning tasks: classification, regression, and time-series forecasting (data -> EDA -> features -> train -> evaluate -> predict), with charts and flexible I/O."
+readme = "README.md"
+authors = [
+    { name = "Rajinder Singh", email = "rajinder.singh@zooplus.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "scikit-learn>=1.5",
+    "joblib>=1.4",
+    "pyyaml>=6.0",
+    "plotly>=5.20",
+    "pyarrow>=15",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+ml-boilerplate = "ml_boilerplate.main:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,32 @@
+# Example 3: single-series forecasting (e.g. daily demand, sales, traffic).
+task: timeseries
+
+data:
+  source: synthetic
+  # path: data/sales.csv    # must contain a date column + the target column history
+  target_column: target
+  date_column: date
+  n_lags: [1, 7, 14]         # lag features, in periods
+  rolling_windows: [7, 14]    # rolling mean/std window sizes, in periods
+  test_size: 0.2              # fraction of (post-warm-up) rows held out, chronologically
+
+features:
+  scale_numeric: true
+
+model:
+  type: random_forest        # any REGRESSOR_REGISTRY entry
+  params:
+    n_estimators: 300
+    random_state: 42
+
+eda:
+  enabled: true
+  output_dir: artifacts/timeseries/plots
+
+artifacts:
+  model_path: artifacts/timeseries/model.joblib
+  metrics_path: artifacts/timeseries/metrics.json
+  plots_dir: artifacts/timeseries/plots
+
+output:
+  format: null   # "csv" | "parquet" | null to infer from --output's extension
