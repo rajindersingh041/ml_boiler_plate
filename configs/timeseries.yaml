@@ -1,13 +1,21 @@
-# Example 3: single-series forecasting (e.g. daily demand, sales, traffic).
+# Example 3: single-series forecasting.
+#
+# Real dataset: the classic Box-Jenkins Airline Passengers series (monthly
+# totals, 1949-1960) — also published on Kaggle as
+# https://www.kaggle.com/datasets/rakannimer/air-passengers. Small (144
+# rows) and clean, so lags/rolling windows below are tuned for monthly
+# (not daily) seasonality: lag 1 (previous month) and lag 12 (same month
+# last year) tend to matter most.
 task: timeseries
 
 data:
-  source: synthetic
-  # path: data/sales.csv    # must contain a date column + the target column history
-  target_column: target
-  date_column: date
-  n_lags: [1, 7, 14]         # lag features, in periods
-  rolling_windows: [7, 14]    # rolling mean/std window sizes, in periods
+  source: file
+  path: https://raw.githubusercontent.com/jbrownlee/Datasets/master/airline-passengers.csv
+  format: csv
+  target_column: Passengers
+  date_column: Month
+  n_lags: [1, 12]
+  rolling_windows: [3, 12]
   test_size: 0.2              # fraction of (post-warm-up) rows held out, chronologically
 
 features:

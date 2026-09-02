@@ -1,18 +1,29 @@
-# Example 1: binary classification (e.g. churn, fraud, spam).
+# Example 1: binary classification.
+#
+# Real dataset: Titanic - Machine Learning from Disaster (the canonical
+# Kaggle competition: https://www.kaggle.com/competitions/titanic).
+# Fetched here from a public CSV mirror so it runs with zero setup; if you
+# have Kaggle credentials, `kaggle competitions download -c titanic` and
+# point `path` at the local train.csv instead.
 task: classification
 
 data:
-  source: synthetic        # "synthetic" | "file"
-  # path: data/train.csv   # local path or http(s) URL, when source: file
-  # format: csv             # "csv" | "parquet" | omit to infer from extension
-  target_column: target
+  source: file              # "synthetic" (offline quick-start) | "file"
+  path: https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv
+  format: csv
+  target_column: Survived
   test_size: 0.2
   random_state: 42
 
 features:
+  # Explicit column lists here (rather than auto-detect) deliberately drop
+  # PassengerId/Name/Ticket/Cabin — high-cardinality/free-text columns that
+  # would blow up one-hot encoding or leak nothing useful in a boilerplate.
+  numeric_columns: [Pclass, Age, SibSp, Parch, Fare]
+  categorical_columns: [Sex, Embarked]
   scale_numeric: true
-  missing_strategy_numeric: median
-  missing_strategy_categorical: most_frequent
+  missing_strategy_numeric: median          # Age is ~20% missing in this dataset
+  missing_strategy_categorical: most_frequent  # Embarked is missing for 2 rows
 
 model:
   type: random_forest      # logistic_regression | random_forest | gradient_boosting |

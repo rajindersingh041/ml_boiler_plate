@@ -3,7 +3,6 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
-artifacts/*.joblib
-artifacts/*.json
+artifacts/
 .DS_Store
 *.egg-info/

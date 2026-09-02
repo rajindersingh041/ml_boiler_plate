@@ -1,16 +1,25 @@
-# Example 2: tabular regression (e.g. price, demand, LTV prediction).
+# Example 2: tabular regression.
+#
+# Real dataset: California Housing Prices (also published on Kaggle as
+# https://www.kaggle.com/datasets/camnugent/california-housing-prices) —
+# 1990 census block-group data, target is median_house_value.
+# Fetched from a public CSV mirror; total_bedrooms has ~1% real missing
+# values, a good demo of the missing-value handling below.
 task: regression
 
 data:
-  source: synthetic
-  # path: data/train.parquet
-  target_column: target
+  source: file
+  path: https://raw.githubusercontent.com/ageron/handson-ml2/master/datasets/housing/housing.csv
+  format: csv
+  target_column: median_house_value
   test_size: 0.2
   random_state: 42
 
 features:
+  # numeric/categorical columns left to auto-detect: every remaining
+  # column is numeric except ocean_proximity.
   scale_numeric: true
-  missing_strategy_numeric: median
+  missing_strategy_numeric: median          # total_bedrooms is ~1% missing
 
 model:
   type: gradient_boosting   # linear_regression | ridge | random_forest |
