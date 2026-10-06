@@ -64,6 +64,10 @@ def _build_parser() -> argparse.ArgumentParser:
         "crossval", help="Run k-fold CV over the full pipeline", parents=[common]
     )
 
+    subparsers.add_parser(
+        "tune", help="Tune hyperparameters via grid/random search", parents=[common]
+    )
+
     return parser
 
 
@@ -113,6 +117,17 @@ def main(argv: list[str] | None = None) -> None:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(json.dumps(result, indent=2))
         print(result["aggregate"])
+    elif args.command == "tune":
+        from ml_boilerplate.tuning import run_tuning
+        from ml_boilerplate.validation import split_train_val_test
+
+        df = load_data(cfg.data, cfg.task)
+        X = df.drop(columns=[cfg.data.target_column])
+        y = df[cfg.data.target_column]
+        X_train, _, _, y_train, _, _ = split_train_val_test(X, y, cfg, cfg.task)
+        _, result = run_tuning(X_train, y_train, cfg, cfg.task)
+        print(result["best_params"])
+        print(result["best_score"])
 
 
 if __name__ == "__main__":
