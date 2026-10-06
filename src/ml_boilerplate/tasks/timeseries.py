@@ -13,37 +13,39 @@ from typing import Any
 import pandas as pd
 from sklearn.base import BaseEstimator
 
-from ml_boilerplate.config import Config, DataConfig
+from ml_boilerplate.config import Config, DataConfig, FeatureConfig
+from ml_boilerplate.engineering import add_lag_features
 from ml_boilerplate.metrics import regression_metrics
 from ml_boilerplate.model import REGRESSOR_REGISTRY
 from ml_boilerplate.plotting import plot_forecast
 from ml_boilerplate.tasks.base import Task
 
 
-def build_lag_features(df: pd.DataFrame, cfg: DataConfig) -> pd.DataFrame:
+def build_lag_features(
+    df: pd.DataFrame, cfg: DataConfig, feat: FeatureConfig | None = None
+) -> pd.DataFrame:
     """Add lag, rolling-window, and date-part features; drop warm-up rows.
 
+    Thin wrapper over engineering.add_lag_features. With default feature
+    flags the output columns are exactly the legacy set (lag_N,
+    rolling_mean/std_N, dayofweek/month/day plus the extended date parts).
     Rolling/lag features use `.shift(1)` before rolling so no feature
     ever leaks the current row's target into itself.
     """
-    date_col = cfg.date_column or "date"
-    target = cfg.target_column
-
-    out = df.sort_values(date_col).reset_index(drop=True).copy()
-    out[date_col] = pd.to_datetime(out[date_col])
-
-    for lag in cfg.n_lags:
-        out[f"lag_{lag}"] = out[target].shift(lag)
-    for window in cfg.rolling_windows:
-        shifted = out[target].shift(1)
-        out[f"rolling_mean_{window}"] = shifted.rolling(window).mean()
-        out[f"rolling_std_{window}"] = shifted.rolling(window).std()
-
-    out["dayofweek"] = out[date_col].dt.dayofweek
-    out["month"] = out[date_col].dt.month
-    out["day"] = out[date_col].dt.day
-
-    return out.dropna().reset_index(drop=True)
+    feat = feat or FeatureConfig()
+    return add_lag_features(
+        df,
+        target=cfg.target_column,
+        date_col=cfg.date_column or "date",
+        n_lags=cfg.n_lags,
+        rolling_windows=cfg.rolling_windows,
+        rolling_stats=tuple(feat.rolling_stats),
+        lag_diffs=feat.lag_diffs,
+        date_parts=True,
+        cyclical=feat.cyclical_encoding,
+        holiday_country=feat.holiday_country,
+        holiday_subdiv=feat.holiday_subdiv,
+    )
 
 
 class TimeSeriesTask(Task):
@@ -55,7 +57,7 @@ class TimeSeriesTask(Task):
 
     def split(self, df: pd.DataFrame, cfg: Config):
         date_col = cfg.data.date_column or "date"
-        featured = build_lag_features(df, cfg.data)
+        featured = build_lag_features(df, cfg.data, cfg.features)
 
         n_test = max(1, int(len(featured) * cfg.data.test_size))
         split_index = len(featured) - n_test
@@ -95,7 +97,7 @@ class TimeSeriesTask(Task):
         training).
         """
         date_col = cfg.data.date_column or "date"
-        featured = build_lag_features(df, cfg.data)
+        featured = build_lag_features(df, cfg.data, cfg.features)
         feature_cols = [
             c for c in featured.columns if c not in (cfg.data.target_column, date_col)
         ]

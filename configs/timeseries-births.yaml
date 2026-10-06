@@ -20,6 +20,10 @@ data:
 
 features:
   scale_numeric: true
+  # Demo of the engineering.py options: cyclical month/day-of-week encoding
+  # plus US holidays (1959-07-04 falls inside this series).
+  cyclical_encoding: true
+  holiday_country: "US"
 
 model:
   type: random_forest        # any REGRESSOR_REGISTRY entry

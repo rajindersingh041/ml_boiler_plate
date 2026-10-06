@@ -21,6 +21,7 @@ import logging
 from ml_boilerplate.config import Config
 from ml_boilerplate.data import load_data
 from ml_boilerplate.eda import run_eda
+from ml_boilerplate.engineering import featurize
 from ml_boilerplate.predict import run_prediction
 from ml_boilerplate.train import run_training
 
@@ -125,6 +126,7 @@ def main(argv: list[str] | None = None) -> None:
         from ml_boilerplate.validation import split_train_val_test
 
         df = load_data(cfg.data, cfg.task)
+        df = featurize(df, cfg, cfg.task)
         X = df.drop(columns=[cfg.data.target_column])
         y = df[cfg.data.target_column]
         X_train, X_val, X_test, _, _, _ = split_train_val_test(X, y, cfg, cfg.task)
@@ -136,6 +138,7 @@ def main(argv: list[str] | None = None) -> None:
         from ml_boilerplate.crossval import run_cv
 
         df = load_data(cfg.data, cfg.task)
+        df = featurize(df, cfg, cfg.task)
         X = df.drop(columns=[cfg.data.target_column])
         y = df[cfg.data.target_column]
         result = run_cv(X, y, cfg, cfg.task)
@@ -148,6 +151,7 @@ def main(argv: list[str] | None = None) -> None:
         from ml_boilerplate.validation import split_train_val_test
 
         df = load_data(cfg.data, cfg.task)
+        df = featurize(df, cfg, cfg.task)
         X = df.drop(columns=[cfg.data.target_column])
         y = df[cfg.data.target_column]
         X_train, _, _, y_train, _, _ = split_train_val_test(X, y, cfg, cfg.task)
@@ -171,6 +175,7 @@ def main(argv: list[str] | None = None) -> None:
 
         task = get_task(cfg.task)
         df = load_data(cfg.data, cfg.task)
+        df = featurize(df, cfg, cfg.task)
         _, X_test, _, y_test = task.split(df, cfg)
         y_pred = model.predict(X_test)
         y_proba = None

@@ -33,6 +33,14 @@ class FeatureConfig:
     scale_numeric: bool = True
     missing_strategy_numeric: str = "median"       # passed to sklearn SimpleImputer
     missing_strategy_categorical: str = "most_frequent"
+    # Feature engineering (engineering.py). All opt-in except rolling_stats,
+    # whose default reproduces the legacy timeseries builder exactly.
+    datetime_columns: list[str] | None = None      # tabular date cols to derive parts from
+    cyclical_encoding: bool = False                # sin/cos for month + day-of-week
+    holiday_country: str | None = None             # e.g. "US"; None disables holidays
+    holiday_subdiv: str | None = None              # e.g. "CA" for California
+    rolling_stats: list[str] = field(default_factory=lambda: ["mean", "std"])
+    lag_diffs: bool = False                        # target.diff(lag) features
 
 
 @dataclass

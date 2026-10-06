@@ -19,6 +19,7 @@ dependencies = [
     "seaborn>=0.13.2",
     "fastapi>=0.142.2",
     "uvicorn>=0.54.0",
+    "holidays>=0.106",
 ]
 
 [project.scripts]

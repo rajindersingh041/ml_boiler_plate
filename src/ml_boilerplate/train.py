@@ -20,6 +20,7 @@ from sklearn.pipeline import Pipeline
 from ml_boilerplate.config import Config
 from ml_boilerplate.data import load_data
 from ml_boilerplate.eda import run_eda
+from ml_boilerplate.engineering import featurize
 from ml_boilerplate.model import build_model
 from ml_boilerplate.tasks import get_task
 
@@ -37,6 +38,11 @@ def run_training(cfg: Config) -> dict:
     if cfg.eda.enabled:
         logger.info("Running EDA")
         run_eda(df, cfg.eda, report_path=f"{cfg.eda.output_dir}/eda_report.json")
+
+    # Row-local datetime derivation for tabular tasks (no-op for timeseries
+    # and when features.datetime_columns is unset). After EDA so the report
+    # profiles raw data; before split so train sees the engineered frame.
+    df = featurize(df, cfg, cfg.task)
 
     X_train, X_test, y_train, y_test = task.split(df, cfg)
 

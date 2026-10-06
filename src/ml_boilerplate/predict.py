@@ -13,6 +13,7 @@ import joblib
 import pandas as pd
 
 from ml_boilerplate.config import Config
+from ml_boilerplate.engineering import featurize
 from ml_boilerplate.io import read_table, write_table
 from ml_boilerplate.tasks import get_task
 
@@ -32,6 +33,7 @@ def run_prediction(cfg: Config, input_path: str, output_path: str) -> str:
         model = load_model(cfg.artifacts.model_path)
 
     df = read_table(input_path)
+    df = featurize(df, cfg, cfg.task)
     X, passthrough = task.prepare_predict_features(df, cfg)
 
     out = passthrough.reset_index(drop=True) if passthrough is not None else pd.DataFrame()
