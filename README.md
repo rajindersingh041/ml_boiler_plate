@@ -1,10 +1,11 @@
 # ML Boilerplate
 
-Generic, extensible scaffold for a supervised ML learning task — classification,
-regression, or single-series time-series forecasting — driven by one YAML config
-and a small CLI: **data → EDA → features → train → evaluate → predict**, with
-interactive charts at every stage. Managed end-to-end with
-[`uv`](https://docs.astral.sh/uv/).
+Generic, extensible scaffold for supervised ML — classification, regression,
+or single-series time-series forecasting — usable two ways: driven by one
+YAML config and a small CLI (**data → EDA → features → train → validate →
+tune → evaluate → register → serve → monitor**), or à la carte as a plain
+Python library (every stage is an importable function, no YAML required).
+Managed end-to-end with [`uv`](https://docs.astral.sh/uv/).
 
 ## Structure
 
@@ -24,10 +25,19 @@ src/ml_boilerplate/
   config.py                 # dataclasses + YAML loader (task type, I/O, EDA, models, ...)
   io.py                     # read_table()/write_table(): csv or parquet, local path or http(s) URL
   eda.py                    # profile_dataframe() (schema/missing/stats) + run_eda() -> report + charts
+  engineering.py            # add_datetime_features() (parts/cyclical/holidays) + add_lag_features() + featurize()
   plotting.py               # plotly charts (EDA + per-task result charts), saved as standalone HTML
   features.py               # shared ColumnTransformer: numeric/categorical impute + encode + scale
   model.py                  # CLASSIFIER_REGISTRY / REGRESSOR_REGISTRY (linear, RF, boosting, bagging)
-  metrics.py                 # classification_metrics() + regression_metrics() (incl. MAPE/sMAPE)
+  metrics.py                # classification_metrics() (binary + multiclass) + regression_metrics() (MAPE/sMAPE)
+  validation.py             # split_train_val_test(): stratified / chronological / random
+  crossval.py               # run_cv(): k-fold over the full pipeline, per-fold + mean±std
+  tuning.py                 # run_tuning(): grid/random search over model__* params
+  distributions.py          # data/error/drift distribution profiles (JSON-serializable)
+  evaluation.py             # evaluate_on_test(): metrics + pass/fail gate vs min_metrics
+  registry.py               # save_run()/promote()/load_production(): local file model registry
+  api.py                    # FastAPI: GET /health, POST /predict over the production model
+  monitor.py                # check_drift(): per-column PSI vs the training profile (CI gate)
   tasks/                     # the abstraction layer — one class per problem type
     base.py                  # Task ABC: split(), model_registry(), compute_metrics(), plot_results()
     classification.py         # stratified random split, confusion matrix + ROC chart
@@ -36,8 +46,11 @@ src/ml_boilerplate/
   data.py                    # synthetic generator per task, or load via io.py for real data
   train.py                   # generic driver: wires the above into one Task-agnostic training run
   predict.py                 # generic driver: load model, score new data, write csv/parquet
-  main.py                    # CLI: `train`, `predict`, `eda` subcommands
-tests/                       # smoke test per task, EDA test, offline config sanity tests
+  main.py                    # CLI: train/predict/eda/validate/crossval/tune/evaluate/promote/serve/monitor
+notebooks/
+  interview_boilerplate.ipynb  # live-interview EDA kit: set 4 vars, run all, narrate
+  library_usage.ipynb          # à la carte recipes: every stage as a function call (runs offline)
+tests/                       # unit + smoke tests per module, offline config sanity tests
 artifacts/<task>/            # per-example model, metrics.json, and plots/ (created after training)
 ```
 
@@ -51,6 +64,53 @@ Creates `.venv` and installs everything (including dev deps from
 `[dependency-groups].dev`) pinned exactly as recorded in `uv.lock`. No manual
 venv/pip steps — every command below runs through `uv run`, which uses that
 same environment automatically.
+
+## Install anywhere (including a live interview)
+
+The package installs straight from git into any environment — verified in a
+clean venv — so `git pull` (or one install line) is the whole setup:
+
+```bash
+pip install "ml-boilerplate @ git+https://github.com/rajindersingh041/ml_boiler_plate.git"
+# or: uv pip install "ml-boilerplate @ git+https://github.com/rajindersingh041/ml_boiler_plate.git"
+```
+
+then `import ml_boilerplate` and use it as below. For the notebooks,
+clone the repo instead (vendored `data/*.csv` files make both notebooks
+runnable offline).
+
+## Use it as a library (no YAML, no CLI)
+
+`Config(task=...)` built in code replaces every YAML file; only
+`run_training`/`main` need YAML. See `notebooks/library_usage.ipynb`
+(executed green, runs offline) for the full recipes — the shape is:
+
+```python
+from sklearn.pipeline import Pipeline
+from ml_boilerplate.config import Config, ModelConfig
+from ml_boilerplate.data import load_data
+from ml_boilerplate.model import build_model
+from ml_boilerplate.tasks import get_task
+from ml_boilerplate.validation import split_train_val_test
+from ml_boilerplate.evaluation import evaluate_on_test
+
+cfg = Config(task="regression")          # plain object, set attrs in code
+df = load_data(cfg.data, "regression")   # synthetic offline; or read_table("data/mpg.csv")
+
+task = get_task("regression")
+X = df.drop(columns=["target"]); y = df["target"]
+Xtr, _, Xte, ytr, _, yte = split_train_val_test(X, y, cfg, "regression")
+pipe = Pipeline([("preprocess", task.build_preprocessor(Xtr, cfg)),
+                 ("model", build_model(ModelConfig(type="random_forest"), task.model_registry()))])
+pipe.fit(Xtr, ytr)
+gate = evaluate_on_test(yte, pipe.predict(Xte), None, "regression", {"r2": 0.5})
+print(gate["passed"], gate["metrics"]["r2"])
+```
+
+More entry points: `profile_dataframe` (EDA dict), `data_distributions` /
+`error_distributions`, `build_model` + registries, `run_tuning`,
+`task.build_preprocessor(X, cfg)` (shared impute/encode/scale),
+`create_app` (FastAPI).
 
 ## The abstraction layer
 
@@ -105,6 +165,39 @@ strongly trending series like this one will under/over-shoot at the trend's
 edges — a real, teachable limitation, not a bug. Try `model.type:
 gradient_boosting`, or add an explicit trend feature, to see the difference.
 
+## Full pipeline (CLI)
+
+Beyond `train`/`predict`/`eda`, every stage runs standalone:
+
+```bash
+uv run python -m ml_boilerplate.main --config configs/regression-mpg.yaml validate  # split sizes
+uv run python -m ml_boilerplate.main --config configs/regression-mpg.yaml crossval  # k-fold -> artifacts/cv_results.json
+uv run python -m ml_boilerplate.main --config configs/regression-mpg.yaml tune      # needs tuning.param_grid
+uv run python -m ml_boilerplate.main --config configs/regression-mpg.yaml evaluate  # gate vs evaluation.min_metrics (exit 1 on fail)
+uv run python -m ml_boilerplate.main --config configs/regression-mpg.yaml promote --run-id <id>
+uv run python -m ml_boilerplate.main --config configs/regression-mpg.yaml serve     # FastAPI on serving.host:port
+uv run python -m ml_boilerplate.main --config configs/regression-mpg.yaml monitor --input live.csv  # PSI gate (exit 1 on drift)
+```
+
+## Feature engineering
+
+`engineering.py`, shared by all tasks (same functions at train and predict
+time, so no train/serve skew). Opt-in via `features:` — defaults reproduce
+the legacy timeseries builder exactly:
+
+```yaml
+features:
+  datetime_columns: [signup_date]  # tabular date cols -> parts below; original col dropped
+  cyclical_encoding: true          # month/dow sin+cos
+  holiday_country: "US"            # is_holiday + days_to_holiday (holidays lib; null disables)
+  rolling_stats: [mean, std]       # any of mean | std | min | max
+  lag_diffs: false                 # target.diff(lag) features (timeseries)
+```
+
+Lag/rolling windows always build on `.shift(1)` first — no feature ever
+sees the current row's target. See `timeseries-births.yaml` for a live
+example (cyclical + US holidays on).
+
 ## EDA
 
 Run standalone, without training:
@@ -133,7 +226,8 @@ features:
 
 ## Metrics
 
-- Classification: accuracy, precision, recall, f1, roc_auc
+- Classification: accuracy, precision, recall, f1 (binary average for 2
+  classes, weighted for multiclass), roc_auc (binary only)
 - Regression / time series: MAE, RMSE, R2, MAPE, sMAPE (`metrics.py`)
 
 Note MAPE is undefined/unstable when the target is at or near zero (a known
@@ -164,7 +258,7 @@ data:
 
 Parquet needs `pyarrow` (already a dependency). Parquet-over-URL isn't
 supported yet (would need `fsspec`); CSV-over-URL works natively via pandas —
-that's how the three example configs above pull real data with no download
+that's how the example configs above pull real data with no download
 step.
 
 For `task: timeseries`, also set `date_column`, and optionally tune
@@ -192,9 +286,10 @@ are rebuilt from that history, the same way as during training; the first
 uv run pytest
 ```
 
-The per-task and EDA tests run fully offline against synthetic data; a
-separate `test_example_configs.py` only parses the three real-dataset YAML
-files (no network call) so a config typo still fails fast in CI.
+The per-task, engineering, metrics, registry, API, and monitor tests run
+fully offline against synthetic data; a separate `test_example_configs.py`
+only parses the nine real-dataset YAML files (no network call) so a config
+typo still fails fast in CI.
 
 ## Adding your own dependency
 
@@ -207,8 +302,8 @@ Both update `pyproject.toml` and `uv.lock` together — commit both.
 
 ## Non-goals (for now)
 
-- No walk-forward / rolling-origin cross-validation for time series (single
-  chronological train/test split only).
+- No walk-forward / rolling-origin evaluation for time series (single
+  chronological train/test split; CV does offer `TimeSeriesSplit` folds).
 - No xgboost/lightgbm — the model registries are scikit-learn only
   (`gradient_boosting`, `hist_gradient_boosting`, `bagging`, `random_forest`
   cover most boosting/bagging needs); add your own registry entries if you
