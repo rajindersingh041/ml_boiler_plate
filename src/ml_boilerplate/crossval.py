@@ -16,7 +16,8 @@ from ml_boilerplate.model import build_model
 from ml_boilerplate.tasks import get_task
 
 
-def _splitter(task_name: str, cfg: Config):
+def get_splitter(task_name: str, cfg: Config):
+    """Task-aware CV splitter shared by crossval and tuning."""
     k = cfg.cross_validation.folds
     if task_name == "classification":
         return StratifiedKFold(n_splits=k, shuffle=cfg.cross_validation.shuffle,
@@ -28,9 +29,12 @@ def _splitter(task_name: str, cfg: Config):
                  random_state=cfg.data.random_state if shuffle else None)
 
 
+_splitter = get_splitter
+
+
 def run_cv(X: pd.DataFrame, y: pd.Series, cfg: Config, task_name: str) -> dict:
     task = get_task(task_name)
-    splitter = _splitter(task_name, cfg)
+    splitter = get_splitter(task_name, cfg)
     split_args = (X, y) if task_name == "classification" else (X,)
     per_fold = []
     for train_idx, val_idx in splitter.split(*split_args):
