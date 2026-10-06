@@ -56,6 +56,10 @@ def _build_parser() -> argparse.ArgumentParser:
         "eda", help="Profile the data and render EDA charts, without training", parents=[common]
     )
 
+    subparsers.add_parser(
+        "validate", help="Show train/validation/test split sizes", parents=[common]
+    )
+
     return parser
 
 
@@ -83,6 +87,14 @@ def main(argv: list[str] | None = None) -> None:
         df = load_data(cfg.data, cfg.task)
         paths = run_eda(df, cfg.eda, report_path=f"{cfg.eda.output_dir}/eda_report.json")
         print(paths)
+    elif args.command == "validate":
+        from ml_boilerplate.validation import split_train_val_test
+
+        df = load_data(cfg.data, cfg.task)
+        X = df.drop(columns=[cfg.data.target_column])
+        y = df[cfg.data.target_column]
+        X_train, X_val, X_test, _, _, _ = split_train_val_test(X, y, cfg, cfg.task)
+        print(f"train: {len(X_train)}, val: {len(X_val)}, test: {len(X_test)}")
 
 
 if __name__ == "__main__":

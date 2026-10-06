@@ -65,6 +65,42 @@ class OutputConfig:
 
 
 @dataclass
+class ValidationConfig:
+    val_size: float = 0.2
+
+
+@dataclass
+class CrossValidationConfig:
+    folds: int = 5
+    shuffle: bool = True
+
+
+@dataclass
+class TuningConfig:
+    enabled: bool = False
+    method: str = "grid"          # "grid" | "random"
+    param_grid: dict[str, list] = field(default_factory=dict)
+    n_iter: int = 10
+
+
+@dataclass
+class EvaluationConfig:
+    min_metrics: dict[str, float] = field(default_factory=dict)
+
+
+@dataclass
+class RegistryConfig:
+    runs_dir: str = "artifacts/runs"
+    production_dir: str = "artifacts/production"
+
+
+@dataclass
+class ServingConfig:
+    host: str = "127.0.0.1"
+    port: int = 8000
+
+
+@dataclass
 class Config:
     task: str = "classification"       # "classification" | "regression" | "timeseries"
     data: DataConfig = field(default_factory=DataConfig)
@@ -74,6 +110,12 @@ class Config:
     artifacts: ArtifactConfig = field(default_factory=ArtifactConfig)
     eda: EdaConfig = field(default_factory=EdaConfig)
     output: OutputConfig = field(default_factory=OutputConfig)
+    validation: ValidationConfig = field(default_factory=ValidationConfig)
+    cross_validation: CrossValidationConfig = field(default_factory=CrossValidationConfig)
+    tuning: TuningConfig = field(default_factory=TuningConfig)
+    evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
+    registry: RegistryConfig = field(default_factory=RegistryConfig)
+    serving: ServingConfig = field(default_factory=ServingConfig)
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "Config":
@@ -87,4 +129,10 @@ class Config:
             artifacts=ArtifactConfig(**raw.get("artifacts", {})),
             eda=EdaConfig(**raw.get("eda", {})),
             output=OutputConfig(**raw.get("output", {})),
+            validation=ValidationConfig(**raw.get("validation", {})),
+            cross_validation=CrossValidationConfig(**raw.get("cross_validation", {})),
+            tuning=TuningConfig(**raw.get("tuning", {})),
+            evaluation=EvaluationConfig(**raw.get("evaluation", {})),
+            registry=RegistryConfig(**raw.get("registry", {})),
+            serving=ServingConfig(**raw.get("serving", {})),
         )
