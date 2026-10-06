@@ -36,3 +36,17 @@ def test_predict_missing_column_returns_422(tmp_path):
     client = TestClient(app)
     resp = client.post("/predict", json={"rows": [{"wrong": 1}]})
     assert resp.status_code in (400, 422)
+
+
+def test_module_import_guard_bad_task_does_not_crash_import(monkeypatch):
+    import importlib
+
+    import ml_boilerplate.api as api_module
+
+    monkeypatch.setenv("TASK", "nope")
+    try:
+        mod = importlib.reload(api_module)
+        assert mod.app is None
+    finally:
+        monkeypatch.delenv("TASK", raising=False)
+        importlib.reload(api_module)

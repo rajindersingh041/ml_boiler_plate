@@ -61,6 +61,6 @@ TARGET_COLUMN = os.environ.get("TARGET_COLUMN", "target")
 
 try:
     app = create_app(PRODUCTION_DIR, TASK, TARGET_COLUMN)
-except FileNotFoundError as exc:
+except Exception as exc:  # import-time safety: Dockerfile CMD imports this module, so never crash on bad env/corrupt model
     app = None
     _STARTUP_ERROR = str(exc)
