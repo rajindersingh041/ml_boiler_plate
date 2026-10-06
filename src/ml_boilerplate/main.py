@@ -68,6 +68,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "tune", help="Tune hyperparameters via grid/random search", parents=[common]
     )
 
+    subparsers.add_parser(
+        "evaluate", help="Score the held-out test split and gate on min metrics",
+        parents=[common],
+    )
+
     return parser
 
 
@@ -128,6 +133,39 @@ def main(argv: list[str] | None = None) -> None:
         _, result = run_tuning(X_train, y_train, cfg, cfg.task)
         print(result["best_params"])
         print(result["best_score"])
+    elif args.command == "evaluate":
+        import json
+        from pathlib import Path
+
+        import joblib
+
+        from ml_boilerplate.evaluation import evaluate_on_test
+        from ml_boilerplate.tasks import get_task
+
+        try:
+            from ml_boilerplate import registry
+            model = registry.load_production(cfg.registry.production_dir)
+        except (FileNotFoundError, ModuleNotFoundError, ImportError):
+            model = joblib.load(cfg.artifacts.model_path)
+
+        task = get_task(cfg.task)
+        df = load_data(cfg.data, cfg.task)
+        _, X_test, _, y_test = task.split(df, cfg)
+        y_pred = model.predict(X_test)
+        y_proba = None
+        if hasattr(model, "predict_proba"):
+            proba = model.predict_proba(X_test)
+            if proba.ndim == 2 and proba.shape[1] == 2:
+                y_proba = proba[:, 1]
+        result = evaluate_on_test(
+            y_test.to_numpy(), y_pred, y_proba, cfg.task, cfg.evaluation.min_metrics
+        )
+        out_path = Path("artifacts/evaluation.json")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(result, indent=2, default=float))
+        print(result)
+        if not result["passed"]:
+            raise SystemExit(1)
 
 
 if __name__ == "__main__":
