@@ -1,0 +1,42 @@
+# Example: long monthly single-series forecasting (sunspots).
+#
+# Real dataset: monthly sunspot numbers, 1749-1983
+# (https://github.com/jbrownlee/Datasets, 2820 rows). The ~11-year solar
+# cycle is the signal: lag 12 (same month last year) and 12-month rolling
+# windows carry it, while lag 1 covers month-to-month persistence.
+# Contrast with timeseries-births.yaml (daily) and timeseries.yaml
+# (short monthly) for three different time shapes.
+# Vendored fallback lives at data/monthly-sunspots.csv — point `path` at it
+# to run offline.
+task: timeseries
+
+data:
+  source: file
+  path: https://raw.githubusercontent.com/jbrownlee/Datasets/master/monthly-sunspots.csv
+  format: csv
+  target_column: Sunspots
+  date_column: Month
+  n_lags: [1, 12]
+  rolling_windows: [3, 12]
+  test_size: 0.2              # fraction of (post-warm-up) rows held out, chronologically
+
+features:
+  scale_numeric: true
+
+model:
+  type: random_forest        # any REGRESSOR_REGISTRY entry
+  params:
+    n_estimators: 300
+    random_state: 42
+
+eda:
+  enabled: true
+  output_dir: artifacts/sunspots/plots
+
+artifacts:
+  model_path: artifacts/sunspots/model.joblib
+  metrics_path: artifacts/sunspots/metrics.json
+  plots_dir: artifacts/sunspots/plots
+
+output:
+  format: null   # "csv" | "parquet" | null to infer from --output's extension

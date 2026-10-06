@@ -20,12 +20,17 @@ from sklearn.metrics import mean_squared_error
 def classification_metrics(
     y_true: np.ndarray, y_pred: np.ndarray, y_proba: np.ndarray | None = None
 ) -> dict[str, Any]:
-    """Standard binary classification metrics."""
+    """Accuracy, precision, recall, f1 (binary average for 2 classes,
+    weighted average for multiclass) plus binary ROC AUC when available."""
+    import numpy as _np
+
+    n_classes = len(_np.unique(_np.concatenate([_np.asarray(y_true), _np.asarray(y_pred)])))
+    average = "binary" if n_classes <= 2 else "weighted"
     metrics = {
         "accuracy": accuracy_score(y_true, y_pred),
-        "precision": precision_score(y_true, y_pred, zero_division=0),
-        "recall": recall_score(y_true, y_pred, zero_division=0),
-        "f1": f1_score(y_true, y_pred, zero_division=0),
+        "precision": precision_score(y_true, y_pred, average=average, zero_division=0),
+        "recall": recall_score(y_true, y_pred, average=average, zero_division=0),
+        "f1": f1_score(y_true, y_pred, average=average, zero_division=0),
     }
     if y_proba is not None:
         try:

@@ -1,0 +1,40 @@
+# Example: small tabular regression on Auto MPG.
+#
+# Real dataset: Auto MPG (seaborn-data mirror, 398 rows). Target is mpg;
+# horsepower has 6 genuinely missing values (median-imputed below) and
+# origin is the lone categorical. `name` (car model string, unique per row)
+# is deliberately dropped — ID-like free text would explode one-hot encoding.
+# Vendored fallback lives at data/mpg.csv — point `path` at it to run offline.
+task: regression
+
+data:
+  source: file
+  path: https://raw.githubusercontent.com/mwaskom/seaborn-data/master/mpg.csv
+  format: csv
+  target_column: mpg
+  test_size: 0.2
+  random_state: 42
+
+features:
+  numeric_columns: [cylinders, displacement, horsepower, weight, acceleration, model_year]
+  categorical_columns: [origin]
+  scale_numeric: true
+  missing_strategy_numeric: median          # horsepower is missing for 6 rows
+
+model:
+  type: random_forest
+  params:
+    n_estimators: 200
+    random_state: 42
+
+eda:
+  enabled: true
+  output_dir: artifacts/mpg/plots
+
+artifacts:
+  model_path: artifacts/mpg/model.joblib
+  metrics_path: artifacts/mpg/metrics.json
+  plots_dir: artifacts/mpg/plots
+
+output:
+  format: null   # "csv" | "parquet" | null to infer from --output's extension

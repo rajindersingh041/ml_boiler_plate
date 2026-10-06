@@ -10,9 +10,16 @@ interactive charts at every stage. Managed end-to-end with
 
 ```
 configs/
-  classification.yaml   # example 1: binary classification (Titanic)
-  regression.yaml         # example 2: tabular regression (California Housing)
-  timeseries.yaml           # example 3: single-series forecasting (Airline Passengers)
+  classification.yaml       # binary classification (Titanic)
+  classification-penguins.yaml  # 3-class classification (Penguins)
+  classification-iris.yaml      # 3-class classification, clean (Iris)
+  regression.yaml             # tabular regression (California Housing)
+  regression-diamonds.yaml    # large tabular regression (Diamonds, 54k)
+  regression-mpg.yaml         # small tabular regression (Auto MPG)
+  timeseries.yaml               # monthly forecasting (Airline Passengers)
+  timeseries-births.yaml        # daily forecasting (Female Births 1959)
+  timeseries-sunspots.yaml      # long monthly forecasting (Sunspots 1749-1983)
+data/                       # vendored offline CSV copies of the six newer examples
 src/ml_boilerplate/
   config.py                 # dataclasses + YAML loader (task type, I/O, EDA, models, ...)
   io.py                     # read_table()/write_table(): csv or parquet, local path or http(s) URL
@@ -55,26 +62,30 @@ metrics to compute, and which chart to draw as a result. `train.py` and
 subclass `Task` and register it in `tasks/__init__.py`; to add a new model,
 add one line to `CLASSIFIER_REGISTRY`/`REGRESSOR_REGISTRY` in `model.py`.
 
-## The three examples — real datasets, zero setup
+## The nine examples — real datasets, zero setup
 
 Each config pulls a well-known real dataset straight from a public CSV
 mirror over http(s) (no Kaggle login needed to run these); the same
 datasets are also published as Kaggle datasets/competitions if you'd rather
 fetch them via `kaggle competitions download`/`kaggle datasets download` and
-point `data.path` at the local file instead.
+point `data.path` at the local file instead. Vendored offline copies of the
+six newer datasets live in `data/` (see each config's header comment).
 
 ```bash
-# 1. Classification — Titanic (kaggle.com/competitions/titanic)
-#    Real missing values in Age (~20%) and Embarked (2 rows).
-uv run python -m ml_boilerplate.main --config configs/classification.yaml train
+# Classification
+uv run python -m ml_boilerplate.main --config configs/classification.yaml train            # Titanic, binary (Age ~20% missing)
+uv run python -m ml_boilerplate.main --config configs/classification-penguins.yaml train  # Penguins, 3-class (real missing values)
+uv run python -m ml_boilerplate.main --config configs/classification-iris.yaml train      # Iris, clean 3-class smoke test
 
-# 2. Regression — California Housing (kaggle.com/datasets/camnugent/california-housing-prices)
-#    Real missing values in total_bedrooms (~1%).
-uv run python -m ml_boilerplate.main --config configs/regression.yaml train
+# Regression
+uv run python -m ml_boilerplate.main --config configs/regression.yaml train          # California Housing (total_bedrooms ~1% missing)
+uv run python -m ml_boilerplate.main --config configs/regression-diamonds.yaml train # Diamonds, 54k rows (hist_gradient_boosting)
+uv run python -m ml_boilerplate.main --config configs/regression-mpg.yaml train      # Auto MPG (horsepower 6 rows missing)
 
-# 3. Time-series — Airline Passengers, monthly 1949-1960
-#    (kaggle.com/datasets/rakannimer/air-passengers)
-uv run python -m ml_boilerplate.main --config configs/timeseries.yaml train
+# Time-series (single-series forecasting)
+uv run python -m ml_boilerplate.main --config configs/timeseries.yaml train          # Airline Passengers, monthly 1949-1960
+uv run python -m ml_boilerplate.main --config configs/timeseries-births.yaml train   # Daily births, 1959 (daily lags)
+uv run python -m ml_boilerplate.main --config configs/timeseries-sunspots.yaml train # Monthly sunspots, 1749-1983 (~11y cycle)
 ```
 
 Each writes `artifacts/<task>/model.joblib`, `artifacts/<task>/metrics.json`, and

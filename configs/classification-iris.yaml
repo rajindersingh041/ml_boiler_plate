@@ -1,0 +1,38 @@
+# Example: clean 3-class classification on Iris.
+#
+# Real dataset: Fisher's Iris (seaborn-data mirror). Target is species
+# (setosa/versicolor/virginica), 150 rows, no missing values — the
+# minimal end-to-end smoke test against real data: if this example fails,
+# the pipeline (not the data) is broken.
+# Vendored fallback lives at data/iris.csv — point `path` at it to run offline.
+task: classification
+
+data:
+  source: file
+  path: https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv
+  format: csv
+  target_column: species
+  test_size: 0.2
+  random_state: 42
+
+features:
+  # All four measurements are numeric; left to auto-detect on purpose to
+  # demo the no-column-list style (contrast classification-penguins.yaml).
+  scale_numeric: true
+
+model:
+  type: logistic_regression
+  params:
+    max_iter: 1000
+
+eda:
+  enabled: true
+  output_dir: artifacts/iris/plots
+
+artifacts:
+  model_path: artifacts/iris/model.joblib
+  metrics_path: artifacts/iris/metrics.json
+  plots_dir: artifacts/iris/plots
+
+output:
+  format: null   # "csv" | "parquet" | null to infer from --output's extension

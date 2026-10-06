@@ -1,0 +1,43 @@
+# Example: multi-class classification on Palmer Penguins.
+#
+# Real dataset: Palmer Penguins (https://github.com/allisonhorst/palmerpenguins),
+# mirrored via seaborn-data. Target is species (3 classes: Adelie, Chinstrap,
+# Gentoo) — a good demo of non-binary classification plus real missing values
+# (bill/flipper/body_mass ~2 rows, sex 11 rows).
+# Fetched from a public CSV mirror so it runs with zero setup; vendored
+# fallback lives at data/penguins.csv — point `path` at it to run offline.
+task: classification
+
+data:
+  source: file
+  path: https://raw.githubusercontent.com/mwaskom/seaborn-data/master/penguins.csv
+  format: csv
+  target_column: species
+  test_size: 0.2
+  random_state: 42
+
+features:
+  numeric_columns: [bill_length_mm, bill_depth_mm, flipper_length_mm, body_mass_g]
+  categorical_columns: [island, sex]
+  scale_numeric: true
+  missing_strategy_numeric: median
+  missing_strategy_categorical: most_frequent
+
+model:
+  type: random_forest      # logistic_regression | random_forest | gradient_boosting |
+                           # hist_gradient_boosting | bagging
+  params:
+    n_estimators: 200
+    random_state: 42
+
+eda:
+  enabled: true
+  output_dir: artifacts/penguins/plots
+
+artifacts:
+  model_path: artifacts/penguins/model.joblib
+  metrics_path: artifacts/penguins/metrics.json
+  plots_dir: artifacts/penguins/plots
+
+output:
+  format: null   # "csv" | "parquet" | null to infer from --output's extension
