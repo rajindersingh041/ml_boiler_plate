@@ -78,6 +78,22 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     promote_parser.add_argument("--run-id", required=True, help="Run ID to promote")
 
+    subparsers.add_parser(
+        "serve", help="Serve the production model over HTTP", parents=[common]
+    )
+
+    monitor_parser = subparsers.add_parser(
+        "monitor", help="Check a live batch for drift vs the production profile",
+        parents=[common],
+    )
+    monitor_parser.add_argument(
+        "--input", required=True, help="CSV/Parquet file (local path or http(s) URL) with live rows"
+    )
+    monitor_parser.add_argument(
+        "--psi-threshold", type=float, default=0.25,
+        help="PSI value above which a column counts as drifted",
+    )
+
     return parser
 
 
@@ -176,6 +192,29 @@ def main(argv: list[str] | None = None) -> None:
 
         dest = registry.promote(cfg.registry.runs_dir, cfg.registry.production_dir, args.run_id)
         print(f"Promoted {args.run_id} to {dest}")
+    elif args.command == "serve":
+        import uvicorn
+
+        from ml_boilerplate.api import create_app
+
+        uvicorn.run(
+            create_app(cfg.registry.production_dir, cfg.task, cfg.data.target_column),
+            host=cfg.serving.host,
+            port=cfg.serving.port,
+        )
+    elif args.command == "monitor":
+        import json
+        from pathlib import Path
+
+        from ml_boilerplate.io import read_table
+        from ml_boilerplate.monitor import check_drift
+
+        profile = json.loads(Path(cfg.registry.production_dir, "profile.json").read_text())
+        live_df = read_table(args.input)
+        result = check_drift(profile, live_df, psi_threshold=args.psi_threshold)
+        print(result["psi"])
+        if result["drifted"]:
+            raise SystemExit(1)
 
 
 if __name__ == "__main__":
