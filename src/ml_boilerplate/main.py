@@ -60,6 +60,10 @@ def _build_parser() -> argparse.ArgumentParser:
         "validate", help="Show train/validation/test split sizes", parents=[common]
     )
 
+    subparsers.add_parser(
+        "crossval", help="Run k-fold CV over the full pipeline", parents=[common]
+    )
+
     return parser
 
 
@@ -95,6 +99,20 @@ def main(argv: list[str] | None = None) -> None:
         y = df[cfg.data.target_column]
         X_train, X_val, X_test, _, _, _ = split_train_val_test(X, y, cfg, cfg.task)
         print(f"train: {len(X_train)}, val: {len(X_val)}, test: {len(X_test)}")
+    elif args.command == "crossval":
+        import json
+        from pathlib import Path
+
+        from ml_boilerplate.crossval import run_cv
+
+        df = load_data(cfg.data, cfg.task)
+        X = df.drop(columns=[cfg.data.target_column])
+        y = df[cfg.data.target_column]
+        result = run_cv(X, y, cfg, cfg.task)
+        out_path = Path("artifacts/cv_results.json")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(result, indent=2))
+        print(result["aggregate"])
 
 
 if __name__ == "__main__":
