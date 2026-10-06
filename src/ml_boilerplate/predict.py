@@ -24,7 +24,12 @@ def load_model(model_path: str):
 def run_prediction(cfg: Config, input_path: str, output_path: str) -> str:
     """Score `input_path` with the trained model and write predictions."""
     task = get_task(cfg.task)
-    model = load_model(cfg.artifacts.model_path)
+    try:
+        from ml_boilerplate import registry
+
+        model = registry.load_production(cfg.registry.production_dir)
+    except FileNotFoundError:
+        model = load_model(cfg.artifacts.model_path)
 
     df = read_table(input_path)
     X, passthrough = task.prepare_predict_features(df, cfg)

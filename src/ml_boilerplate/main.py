@@ -73,6 +73,11 @@ def _build_parser() -> argparse.ArgumentParser:
         parents=[common],
     )
 
+    promote_parser = subparsers.add_parser(
+        "promote", help="Promote a run to production", parents=[common]
+    )
+    promote_parser.add_argument("--run-id", required=True, help="Run ID to promote")
+
     return parser
 
 
@@ -166,6 +171,11 @@ def main(argv: list[str] | None = None) -> None:
         print(result)
         if not result["passed"]:
             raise SystemExit(1)
+    elif args.command == "promote":
+        from ml_boilerplate import registry
+
+        dest = registry.promote(cfg.registry.runs_dir, cfg.registry.production_dir, args.run_id)
+        print(f"Promoted {args.run_id} to {dest}")
 
 
 if __name__ == "__main__":
